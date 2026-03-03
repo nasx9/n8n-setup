@@ -1,0 +1,1 @@
+{"__type":"$$EventMessage","id":"63e92220-d3c0-4b59-9996-cfb11e35616e","ts":"2026-03-03T17:07:49.946-03:00","eventName":"n8n.worker.started","message":"n8n.worker.started","payload":{"workerId":"worker-ed4f4a7b9e8a"}}

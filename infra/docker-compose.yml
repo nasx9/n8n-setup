@@ -1,0 +1,117 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: n8n_postgres
+    environment:
+      POSTGRES_DB: n8n
+      POSTGRES_USER: n8n
+      POSTGRES_PASSWORD: n8n_pass
+      TZ: America/Sao_Paulo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    container_name: n8n_redis
+    environment:
+      TZ: America/Sao_Paulo
+    restart: unless-stopped
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n_main
+    ports:
+      - "5678:5678"
+    environment:
+      # Auth
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: "admin"
+      N8N_BASIC_AUTH_PASSWORD: "admin"
+
+      # Timezone
+      TZ: America/Sao_Paulo
+      N8N_DEFAULT_TIMEZONE: America/Sao_Paulo
+
+      # Database (Postgres)
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: n8n_pass
+
+      # Queue mode (Redis)
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: 6379
+
+      # Ajuda com estabilidade (logs e execução)
+      N8N_LOG_LEVEL: info
+      N8N_EXECUTIONS_DATA_SAVE_ON_ERROR: all
+      N8N_EXECUTIONS_DATA_SAVE_ON_SUCCESS: none
+      N8N_DIAGNOSTICS_ENABLED: "false"
+
+      # Code node permissões (use com responsabilidade)
+      NODE_FUNCTION_ALLOW_BUILTIN: "*"
+      NODE_FUNCTION_ALLOW_EXTERNAL: "*"
+
+    volumes:
+      - ../workflows:/home/node/.n8n
+      - ../shared/js:/data/shared/js
+      - n8n_files:/files
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  worker:
+    image: n8nio/n8n:latest
+    container_name: n8n_worker
+    environment:
+      TZ: America/Sao_Paulo
+      N8N_DEFAULT_TIMEZONE: America/Sao_Paulo
+
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: n8n_pass
+
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: 6379
+
+      N8N_LOG_LEVEL: info
+      N8N_DIAGNOSTICS_ENABLED: "false"
+
+      NODE_FUNCTION_ALLOW_BUILTIN: "*"
+      NODE_FUNCTION_ALLOW_EXTERNAL: "*"
+
+    command: worker
+    volumes:
+      - ../workflows:/home/node/.n8n
+      - ../shared/js:/data/shared/js
+      - n8n_files:/files
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  # Runner para Python (não mistura Python no container do n8n)
+  python_runner:
+    image: python:3.11-slim
+    container_name: n8n_python_runner
+    environment:
+      TZ: America/Sao_Paulo
+    working_dir: /work
+    volumes:
+      - ../shared/python:/work
+      - n8n_files:/files
+    command: ["sleep", "infinity"]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  n8n_files:
